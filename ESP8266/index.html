@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/paho-mqtt/1.0.1/mqttws31.min.js"></script>
+
+    <title>ESP8266 Control</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #d5e094;
+        }
+
+        .container {
+            max-width: 600px;
+            margin: 50px auto;
+            padding: 20px;
+            background-color: #e085bd;
+            
+            border-radius: 10px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+            text-align: center; /* Canh giữa nội dung */
+        }
+
+        h1 {
+            margin-bottom: 16px;
+            font-size: 25px;
+        }
+
+        .control-btn {
+            display: block;
+            width: 200px; /* Độ rộng của nút */
+            margin: 0 auto 10px; /* Canh giữa theo chiều ngang và thêm khoảng cách dưới */
+            padding: 10px 20px;
+            font-size: 16px;
+            text-align: center;
+            cursor: pointer;
+            border: none;
+            border-radius: 20px;
+            background-color: #4caf50;
+            color: #fff;
+            transition: background-color 0.3s ease;
+        }
+
+        
+        .control-btn:active{
+            background-color: red;
+        }
+
+        .sensor-value {
+            margin-top: 30px;
+            text-align: center;
+        }
+
+        .progress-bar {
+            width: 80%; /* Chiều rộng của thanh lực */
+            height: 20px; /* Độ cao của thanh lực */
+            background-color: #e0d3d3; /* Màu nền của thanh lực */
+            border-radius: 8px; /* Độ cong của viền thanh lực */
+            overflow: hidden; /* Ẩn phần tiến trình vượt quá phạm vi của thanh lực */
+            display: inline-block; /* Hiển thị thanh lực trên cùng một dòng */
+        }
+
+        .progress-bar-fill {
+            height: 100%;
+            background-color: #717ce0; /* Màu của phần đã fill trong thanh lực */
+            transition: width 0.3s ease; /* Hiệu ứng chuyển đổi chiều rộng */
+        }
+
+        .sensor-value span {
+            display: inline-block; /* Hiển thị giá trị cảm biến trên cùng một dòng với thanh lực */
+            margin-left: 10px; /* Khoảng cách giữa giá trị cảm biến và thanh lực */
+            font-size: 25px; /* Kích thước chữ cho giá trị cảm biến */
+            color: #1478eb; /* Màu chữ cho giá trị cảm biến */
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>ESP8266 Control Panel by Manh Nguyen</h1>
+
+        <!-- Nút điều khiển -->
+        <button class="control-btn" id="onButton">Turn On</button>
+        <button class="control-btn" id="offButton">Turn Off</button>
+
+        <!-- Hiển thị giá trị cảm biến -->
+        <div class="sensor-value">
+            <h2>Sensor Value</h2>
+            <div class="progress-bar">
+                <div id="progressBar" class="progress-bar-fill"></div>
+            </div>
+            <span id="sensorValue">N/A</span>
+        </div>
+    </div>
+
+    <script>
+        // Thiết lập thông tin kết nối MQTT
+        var broker = "test.mosquitto.org";
+        var port = 8081;
+        var clientID = "web_" + parseInt(Math.random() * 100, 10);
+        var topic = "device/led";
+
+        // Tạo kết nối MQTT
+        var mqttClient = new Paho.MQTT.Client(broker, port, clientID);
+
+        // Kết nối đến broker MQTT
+        mqttClient.connect({
+            onSuccess: function() {
+                console.log("Connected to MQTT broker");
+                // Đăng ký callback để nhận dữ liệu cảm biến từ ESP8266
+                mqttClient.subscribe("device/sensor");
+            },
+            onFailure: function(errorMessage) {
+                console.log("Failed to connect: " + errorMessage.errorMessage);
+            }
+        });
+
+        // Bắt sự kiện khi nhấ
+        // Bắt sự kiện khi nhấn nút "Turn On"
+        document.getElementById("onButton").addEventListener("click", function() {
+            // Gửi tin nhắn điều khiển "on" tới broker MQTT
+            var message = new Paho.MQTT.Message("0");
+            message.destinationName = topic;
+            mqttClient.send(message);
+        });
+
+        // Bắt sự kiện khi nhấn nút "Turn Off"
+        document.getElementById("offButton").addEventListener("click", function() {
+            // Gửi tin nhắn điều khiển "off" tới broker MQTT
+            var message = new Paho.MQTT.Message("1");
+            message.destinationName = topic;
+            mqttClient.send(message);
+        });
+
+        // Đăng ký callback để nhận dữ liệu cảm biến từ ESP8266
+        mqttClient.onMessageArrived = function(message) {
+            // Hiển thị giá trị cảm biến nhận được
+            var sensorValue = parseInt(message.payloadString);
+            updateProgressBar(sensorValue);
+            updateSensorValue(sensorValue);
+        };
+
+        // Hàm cập nhật thanh lực dựa trên giá trị cảm biến
+        function updateProgressBar(value) {
+            // var progressBar = document.getElementById("progressBar");
+            // progressBar.style.width = value + "%";
+            var progressBarFill = document.querySelector(".progress-bar-fill");
+            progressBarFill.style.width = value*100/1024 + "%";
+        }
+
+        // Hàm cập nhật giá trị cảm biến
+        function updateSensorValue(value) {
+            var sensorValueElement = document.getElementById("sensorValue");
+            sensorValueElement.textContent = value;
+        }
+        
+    </script>
+</body>
+</html>
